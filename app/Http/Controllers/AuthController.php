@@ -2,7 +2,10 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\LogingRequest;
+use App\Http\Requests\RegisterRequest;
 use App\Models\User;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Hash;
@@ -11,20 +14,29 @@ use phpDocumentor\Reflection\PseudoTypes\LowercaseString;
 class AuthController extends Controller
 {
 
-    private function findUserByEmail(string $email)
+    public function findUserByEmail(string $email)
     {
         try
         {
+            if (!$email)
+            {
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Email is required'
+                ], 400));
+            }
+
             $email = strtolower(trim($email));
             return User::where('email', $email)->first();
         }
         catch (\Throwable $th) 
         {
-            return response()->json($th, 500);
+            throw new HttpResponseException(response()->json([
+                'message' => $th
+            ], 500));
         }
     }
 
-    public function register(Request $r)
+    public function register(RegisterRequest $r)
     {
         try
         {
@@ -36,7 +48,9 @@ class AuthController extends Controller
 
             if ($user) 
             {
-                return response()->json("Email in use!", 409);
+                throw new HttpResponseException(response()->json([
+                    'message' => 'Email in used'
+                ], 409));
             }
 
             $data['password'] = Hash::make(trim($data['password']));
@@ -46,10 +60,10 @@ class AuthController extends Controller
             $user = $this->findUserByEmail($data['email']);
             
             $UserControl = new UserController();
-
             $UserControl->isUserNull($user);
 
             session()->put("active", true);
+            session()->put("email", $user->email);
             session()->put("id", $user->id);
 
             DB::commit();
@@ -58,12 +72,13 @@ class AuthController extends Controller
         catch (\Throwable $th) 
         {
             DB::rollBack();
-            return response()
-                ->json($th, 500);
+            throw new HttpResponseException(response()->json([
+                'message' => $th
+            ], 500));
         }
     }
 
-    public function login(Request $r)
+    public function login(LogingRequest $r)
     {
         try
         {
@@ -78,15 +93,21 @@ class AuthController extends Controller
 
             if(!Hash::check($data['password'], $user->password))
             {
-                return response()->json("", 401);
+                throw new HttpResponseException(response()->json([
+                ], 401));
             }
+
+            session()->put("active", true);
+            session()->put("email", $user->email);
+            session()->put("id", $user->id);
 
             return response()->json("OK", 200);          
         }
         catch (\Throwable $th) 
         {
-            return response()
-                ->json($th, 500);
+            throw new HttpResponseException(response()->json([
+                'message' => $th
+            ], 500));
         }
     }
 
@@ -99,7 +120,9 @@ class AuthController extends Controller
         }
         catch (\Throwable $th) 
         {
-            return response()->json($th, 500);
+            throw new HttpResponseException(response()->json([
+                'message' => $th
+            ], 500));
         }
     }
 

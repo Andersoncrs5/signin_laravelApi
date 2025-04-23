@@ -2,18 +2,30 @@
 
 namespace App\Http\Controllers;
 
+use App\Http\Requests\UpdateUserRequest;
 use App\Models\User;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class UserController extends Controller
 {
-    public function update(Request $r)
+    public function update(UpdateUserRequest $r)
     {
         try
         {
+            $data = $r->all();
             DB::beginTransaction();
+
+            $AuthControl = new AuthController();
+            $user = $AuthControl->findUserByEmail(session("email"));
+
+            $this->isUserNull($user);
+
+            $data['email'] = session("email");
+
+            $user->update($data);
 
             DB::commit();
             return response()->json("ok", 200);
@@ -21,24 +33,30 @@ class UserController extends Controller
         catch (\Throwable $th) 
         {
             DB::rollBack();
-            return response()->json($th, 500);
+            throw new HttpResponseException(response()->json([
+                'message' => $th
+            ], 500));
         }
     }
 
     public function isUserNull($user, $status = 404)
     {
-        if ($user == null) {
-            return response()->json('user not found', $status);
+        if (!$user) {
+            throw new HttpResponseException(response()->json([
+                'message' => 'User not found'
+            ], $status));
         }
         
-        return null;
+        return;
     }
 
     function get()
     {
         try
         {
-            $user = User::find(session('id'));
+            $id = (int) session("id");
+
+            $user = User::find($id);
 
             $this->isUserNull($user);
 
@@ -46,7 +64,9 @@ class UserController extends Controller
         }
         catch (\Throwable $th) 
         {
-            return response()->json($th, 500);
+            throw new HttpResponseException(response()->json([
+                'message' => $th
+            ], 500));
         }
     }
 
@@ -69,7 +89,9 @@ class UserController extends Controller
         catch (\Throwable $th) 
         {
             DB::rollBack();
-            return response()->json($th, 500);
+            throw new HttpResponseException(response()->json([
+                'message' => $th
+            ], 500));
         }
     }
 

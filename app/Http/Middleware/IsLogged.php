@@ -3,23 +3,21 @@
 namespace App\Http\Middleware;
 
 use Closure;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Http\Request;
 use Symfony\Component\HttpFoundation\Response;
 
 class IsLogged
 {
-    /**
-     * Handle an incoming request.
-     *
-     * @param  \Closure(\Illuminate\Http\Request): (\Symfony\Component\HttpFoundation\Response)  $next
-     */
     public function handle(Request $request, Closure $next): Response
     {
-
-        if (session("id") <= 0 || session("active") == false || !session("active") ) {
-            return response()->json("", 419);
+        if (session("id") >= 1 || session("active")) {
+            return $next($request);
         }
 
-        return $next($request);
+        
+        throw new HttpResponseException(response()->json([
+            'message' => "You are not logged"
+        ], 400));
     }
 }
